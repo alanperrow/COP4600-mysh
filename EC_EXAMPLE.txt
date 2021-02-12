@@ -1,0 +1,20 @@
+== dalekall ==
+/*
+ * Kills all programs started by this shell by going through each pid stored in pidList.
+ * Returns 0 if successful, 1 if any errors were encountered.
+ */
+ 
+-- Example usage --
+
+# background /usr/bin/xterm
+Program started with pid: 22123
+# background /usr/bin/xterm -bg blue
+Program started with pid: 22124
+# background /usr/bin/xterm
+Program started with pid: 22125
+
+// There are now 3 xterm programs running
+
+# dalekall
+
+// All programs have now been killed
