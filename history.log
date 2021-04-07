@@ -6,3 +6,33 @@ dalekall
 byebye 
 hi 
 byebye 
+dwelt 
+dwelt blahblah 
+dwelt mysh 
+history 
+dwelt README 
+dwelt README.mf 
+dwelt README.mt 
+dwelt README.md 
+dwelt .git 
+byebye 
+byebye 
+coppyabode testdir testdir_c 
+coppyabode testdir testdir_c2 
+whereami 
+maik testdir/folder1/insidefile.txt 
+byebye 
+coppyabode testdir testdir_c6 
+coppyabode testdir testdir_with_folda 
+byebye 
+movetodir ../../ 
+coppyabode testdir testdir_coppydirect 
+byebye 
+movetodir testdir 
+whereami 
+coppy file ../file_copied_from_folder 
+coppy test ../test_copied_from_folder 
+byebye 
+coppyabode 
+coppyabode testdir testdir2 
+byebye 

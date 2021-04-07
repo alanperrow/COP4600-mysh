@@ -1,0 +1,36 @@
+== copyabode <source-dir> <target-dir> ==
+/*
+ * Copies the directory "source-dir" and all its subdirectories as a subdirectory of "target-dir".
+ * Returns 0 if successful, 1 if any errors were encountered.
+ */
+
+Implemented with a recursive helper function and a modified coppy function, coppyDirect.
+
+
+-- Example usage --
+
+Let sourcedir be the following directory:
+    |- sourcedir
+    |  |- folder1
+    |  |  |- textinfolder1.txt
+    |  |- text
+    |  |- folder2
+    |  |  |- folder3
+    |  |     |- textinfolder3.file
+Let targetdir be a user-inputted directory that does not yet exist.
+With * representing our recursion depth, the function will perform as follows:
+
+# coppyabode sourcedir targetdir
+
+Make directory "targetdir"
+* Open directory stream "sourcedir" and read:
+    * "folder1" is a directory. Make directory "targetdir/folder1" and recurse...
+    ** Open directory stream "folder1" and read:
+           ** "textinfolder1.txt" is a file. Copy from "sourcedir/folder1/textinfolder1.txt" to "targetdir/folder1/textinfolder1.txt"
+    * "text" is a file. Copy from "sourcedir/text" to "targetdir/text"
+    * "folder2" is a directory. Make directory "targetdir/folder2" and recurse...
+    ** Open directory stream "folder2" and read:
+        ** "folder3" is a directory. Make directory "targetdir/folder2/folder3" and recurse...
+        *** Open directory stream "folder3" and read:
+            *** "textinfolder3.file" is a file. Copy from "targetdir/folder2/folder3/textinfolder3.txt" to "targetdir/folder2/folder3/textinfolder3.txt"
+Done!

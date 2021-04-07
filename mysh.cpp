@@ -1,6 +1,6 @@
 /*
  * Alan Perrow
- * 02/06/2021
+ * 04/06/2021
  * COP4600 Boloni
  * UCF Spring 2021
  */
@@ -15,6 +15,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <experimental/filesystem>
+#include <sys/stat.h>
 using namespace std;
 
 #ifdef _WIN32
@@ -39,6 +41,11 @@ int background(const string &, const vector <string> &);
 int dalek(const string &);
 int dalek(const pid_t);
 int dalekall();
+int dwelt(string &);
+int maik(string &);
+string getParentDir(string &);
+int coppy(string &, string &);
+int coppyabode(string &, string &);
 
 /*
  * Handles command info.
@@ -88,7 +95,7 @@ vector <pid_t> pidList;
  * Initialize shell.
  */
 int main(int argc, char* argv[]) {
-    cout << "Alan Perrow - HW3: MyShell" << endl;
+    cout << "Alan Perrow - MyShell" << endl;
 
     // Define all required commands and associate each with their respective index
     commandList.push_back( Command("movetodir", "Changes the current directory.",
@@ -115,10 +122,24 @@ int main(int argc, char* argv[]) {
     commandList.push_back( Command("dalek", "Terminates the program with a specified PID.",
                                     {"PID"}, {true}, 1) );
     commandMap["dalek"] = 7;
-    // Extra credit commands
+    // HW3 extra credit commands
     commandList.push_back( Command("dalekall", "Terminates all programs previously started by this shell which have not already been terminated.",
                                     {}, {}, 0) );
     commandMap["dalekall"] = 8;
+    // HW5 commands
+    commandList.push_back( Command("dwelt", "Prints whether a specified file is a file, a directory, or if it does not exist.",
+                                    {"file"}, {true}, 1) );
+    commandMap["dwelt"] = 9;
+    commandList.push_back( Command("maik", "Creates an empty file and writes the word \"Draft\" into it.",
+                                    {"file"}, {true}, 1) );
+    commandMap["maik"] = 10;
+    commandList.push_back( Command("coppy", "Copy \"from-file\" into \"to-file\".",
+                                    {"from-file", "to-file"}, {true, true}, 2) );
+    commandMap["coppy"] = 11;
+    // HW5 extra credit commands
+    commandList.push_back( Command("coppyabode", "Copy the directory \"source-dir\" and all its subdirectories as a subdirectory of \"target-dir\".",
+                                    {"source-dir", "target-dir"}, {true, true}, 2) );
+    commandMap["coppyabode"] = 12;
 
     // Load previous history from log file
     ifstream fsiHistory("history.log");
@@ -271,6 +292,26 @@ int cmdLoop() {
                 dalekall();
             }
         }
+        else if (tokens[0] == "dwelt") {
+            if (numReqArgsIsMet(tokens.size(), "dwelt")) {
+                dwelt(tokens[1]);
+            }
+        }
+        else if (tokens[0] == "maik") {
+            if (numReqArgsIsMet(tokens.size(), "maik")) {
+                maik(tokens[1]);
+            }
+        }
+        else if (tokens[0] == "coppy") {
+            if (numReqArgsIsMet(tokens.size(), "coppy")) {
+                coppy(tokens[1], tokens[2]);
+            }
+        }
+        else if (tokens[0] == "coppyabode") {
+            if (numReqArgsIsMet(tokens.size(), "coppyabode")) {
+                coppyabode(tokens[1], tokens[2]);
+            }
+        }
         else {
             cout << "\"" << tokens[0] << "\" is not a recognized command." << endl;
         }
@@ -301,7 +342,7 @@ bool numReqArgsIsMet(int tokensSize, string commandStr) {
  */
 string pathAppend(const string &p1, const string &p2) {
     string tmp = p1;
-    if (p1[p1.length()] != PATH_SEP) {
+    if (p1[p1.length()-1] != PATH_SEP) {
         // Need to add a path separator
         tmp += PATH_SEP;
         return(tmp + p2);
@@ -551,4 +592,251 @@ int dalekall() {
         res += _res;
     }
     return res == 0 ? 0 : 1;
+}
+
+/*
+ * If a regular file exists with that name, it should print: Dwelt indeed.
+ * If the file is a directory, it should print: Abode is.
+ * If there is no file or directory with this name, it should print: Dwelt not.
+ * Returns 0 if successful, 1 if any errors were encountered.
+ */
+int dwelt(string &filepath) {
+    string pathStr = getNewPath(currentDir, filepath);
+    struct stat s;
+
+    // Try to get file attributes
+    if (stat(pathStr.c_str(), &s) == 0) {
+        if (s.st_mode & S_IFDIR) {
+            // Path is a directory
+            cout << "Abode is." << endl;
+        } else {
+            // Path is not a directory, and can thus be inferred to be a file
+            cout << "Dwelt indeed." << endl;
+        }
+    } else {
+        // Could not open path
+        cout << "Dwelt not." << endl;
+        return 1;
+    }
+    return 0;
+}
+
+/*
+ * Creates an empty file and writes the word "Draft" into it.
+ * If the file already exists, prints an error.
+ * Returns 0 if successful, 1 if any errors were encountered.
+ */
+int maik(string &filepath) {
+    string path = getNewPath(currentDir, filepath);
+
+    if (ifstream(path)) {
+        cout << "File already exists." << endl;
+        return 1;
+    }
+    ofstream fsoFile(path);
+    if (!fsoFile) {
+        cout << "File could not be created." << endl;
+        return 1;
+    }
+    // Create and write to our file
+    fsoFile << "Draft" << endl;
+    fsoFile.close();
+    return 0;
+}
+
+/*
+ * Returns the parent directory path string from a file path string.
+ */
+string getParentDir(string &filepath) {
+    size_t lastInd = filepath.find_last_of(PATH_SEP);
+    if (lastInd == string::npos) {
+        // Invalid filepath; return current directory
+        return ".";
+    }
+    return filepath.substr(0, lastInd);
+}
+
+/*
+ * Copies from-file into to-file.
+ * Prints an error if: source file does not exist, destination file exists, or destination file's directory does not exist.
+ * Returns 0 if successful, 1 if any errors were encountered.
+ */
+int coppy(string &fromFile, string &toFile) {
+    // Path strings
+    string fromPath = getNewPath(currentDir, fromFile);
+    string toPath = getNewPath(currentDir, toFile);
+    string toPathParentDir = getParentDir(toPath);  // Parent directory of destination file
+    struct stat s;
+    
+    // Check for destination file
+    if (ifstream(toPath)) {
+        cout << "Destination file already exists." << endl;
+        return 1;
+    }
+    // Make sure source file exists
+    if (stat(fromPath.c_str(), &s) != 0) {
+        cout << "Source file does not exist." << endl;
+        return 1;
+    }
+    // Try to get parent path attributes
+    if (stat(toPathParentDir.c_str(), &s) == 0) {
+        if (s.st_mode & S_IFDIR) {
+            // Path is a valid directory; open files for reading and writing
+            ifstream fsiFrom(fromPath);
+            ofstream fsoTo(toPath);
+            if (!fsoTo) {
+                cout << "Destination file could not be created." << endl;
+                return 1;
+            }
+            fsoTo << fsiFrom.rdbuf();
+            fsiFrom.close();
+            fsoTo.close();
+        }
+    } else {
+        // Could not open directory path
+        cout << "Destination file's directory does not exist." << endl;
+        return 1;
+    }
+    return 0;
+}
+
+/*
+ * Directly copies from-file into to-file, without using relative paths from currentDir.
+ * Mainly used by coppyabode and copyDirRecursive.
+ * Prints an error if: source file does not exist, destination file exists, or destination file's directory does not exist.
+ * Returns 0 if successful, 1 if any errors were encountered.
+ */
+int coppyDirect(string &fromFile, string &toFile) {
+    string toFileParentDir = getParentDir(toFile);  // Parent directory of destination file
+    struct stat s;
+    
+    // Check for destination file
+    if (ifstream(toFile)) {
+        cout << "Destination file already exists." << endl;
+        return 1;
+    }
+    // Make sure source file exists
+    if (stat(fromFile.c_str(), &s) != 0) {
+        cout << "Source file does not exist." << endl;
+        return 1;
+    }
+    // Try to get parent path attributes
+    if (stat(toFileParentDir.c_str(), &s) == 0) {
+        if (s.st_mode & S_IFDIR) {
+            // Path is a valid directory; open files for reading and writing
+            ifstream fsiFrom(fromFile);
+            ofstream fsoTo(toFile);
+            if (!fsoTo) {
+                cout << "Destination file could not be created." << endl;
+                return 1;
+            }
+            fsoTo << fsiFrom.rdbuf();
+            fsiFrom.close();
+            fsoTo.close();
+        }
+    } else {
+        // Could not open directory path
+        cout << "Destination file's directory does not exist." << endl;
+        return 1;
+    }
+    return 0;
+}
+
+/* 
+ * Recursively copies one directory to another.
+ * Returns 0 if successful, 1 if any errors were encountered.
+ */
+int copyDirRecursive(string sourceDirPath, string targetDirPath) {
+    // Open directory stream
+    DIR *sourceDir = opendir( realpath(sourceDirPath.c_str(), NULL) );
+    if (sourceDir == NULL) {
+        // Could not open directory; print reason why
+        cout << "Could not open the source directory \"" << sourceDirPath << "\" during recursive copy." << endl;
+        perror("Error");
+        return 1;
+    }
+    // Read directory stream and copy to target directory, recursing if a directory is read
+    struct stat s;
+    struct dirent *ent;
+    while ( (ent = readdir(sourceDir)) != NULL ) {
+        // Ignore current dir (".") and parent dir ("..") paths
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+            continue;
+        }
+        // Path to source file starting from original source dir path
+        string pathFromSource = getNewPath(sourceDirPath, string(ent->d_name));
+
+        if (stat(pathFromSource.c_str(), &s) == 0) {
+            // Path to target file starting from original target dir path
+            string pathFromTarget = getNewPath(targetDirPath, string(ent->d_name));
+            
+            // Check what type of file we read
+            if (s.st_mode & S_IFDIR) {
+                // This is a directory file; make a dir with the same name in the target directory then recurse
+                int dir = mkdir( pathFromTarget.c_str(), 0777);
+                if (dir == -1) {
+                    // Could not create directory; print reason why
+                    cout << "Could not create the target directory \"" << pathFromTarget << "\" during recursive copy." << endl;
+                    perror("Error");
+                    return 1;
+                }
+                copyDirRecursive(pathFromSource, pathFromTarget);
+            } else {
+                // Not a dir, so assume it is a file; copy it to target directory
+                coppyDirect(pathFromSource, pathFromTarget);
+            }
+        } else {
+            // Could not open file
+            cout << "Could not open the file \"" << pathFromSource << "\" during recursive copy." << endl;
+            return 1;
+        }
+    }
+    closedir(sourceDir);  // Close directory stream
+    return 0;
+}
+
+/*
+ * Copies the directory "source-dir" and all its subdirectories as a subdirectory of "target-dir".
+ * Returns 0 if successful, 1 if any errors were encountered.
+ */
+int coppyabode(string &sourceDir, string &targetDir) {
+    // Path strings
+    string fromPath = getNewPath(currentDir, sourceDir);
+    string toPath = getNewPath(currentDir, targetDir);
+
+    struct stat s;
+    
+    // Check for source directory
+    if (stat(fromPath.c_str(), &s) == 0) {
+        if ( !(s.st_mode & S_IFDIR) ) {
+            cout << "Invalid path for source directory." << endl;
+            return 1;
+        }
+    } else {
+        // Could not open directory path
+        cout << "Source directory does not exist." << endl;
+        return 1;
+    }
+
+    // Check for target directory
+    if (stat(toPath.c_str(), &s) == 0) {
+        if (s.st_mode & S_IFDIR) {
+            cout << "Target directory already exists." << endl;
+            return 1;
+        } else {
+            cout << "Invalid path for target directory." << endl;
+            return 1;
+        }
+    } else {
+        // Could not open directory path, so create it
+        int dir = mkdir( toPath.c_str(), 0777);
+        if (dir == -1) {
+            // Could not create directory; print reason why
+            perror("Error");
+            return 1;
+        }
+    }
+    
+    // Begin recursion
+    return copyDirRecursive(fromPath, toPath);
 }
